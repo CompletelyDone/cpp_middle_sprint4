@@ -83,6 +83,6 @@ MetricResult::ValueType CyclomaticComplexityMetric::CalculateImpl(const function
     };
 
     auto counts = complexity_nodes | std::views::transform(node_count);
-    return std::ranges::fold_left(counts, 1, std::plus{});
+    return static_cast<int>(std::ranges::fold_left(counts, 1, std::plus{}));
 }
 }  // namespace analyzer::metric::metric_impl
