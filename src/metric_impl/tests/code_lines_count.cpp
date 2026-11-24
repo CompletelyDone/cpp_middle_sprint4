@@ -1,37 +1,35 @@
 #include "metric_impl/code_lines_count.hpp"
-#include "file.hpp"
-#include "function.hpp"
+
+#include <string>
 
 #include <gtest/gtest.h>
 
-namespace {
-const std::unordered_map<std::string, int> expected_metrics = {
-    {"comments.py", 3},        {"exceptions.py", 7}, {"if.py", 3},        {"loops.py", 6},  {"many_lines.py", 11},
-    {"many_parameters.py", 1}, {"match_case.py", 7}, {"nested_if.py", 8}, {"simple.py", 5}, {"ternary.py", 1},
-};
-
-}
+#include "file.hpp"
+#include "function.hpp"
 
 namespace analyzer::metric::metric_impl {
+namespace {
 
-TEST(CodeLinesCount, AllGood) {
-    std::for_each(expected_metrics.cbegin(), expected_metrics.cend(), [](const auto &em) {
-        auto functions = function::FunctionExtractor().Get(file::File(em.first));
-        EXPECT_EQ(std::get<int>(CodeLinesCountMetric().Calculate(functions.front()).value), em.second);
-    });
-}
-
-TEST(CodeLinesCount, IgnoresCommentOnlyLines) {
-    const file::File source("comments.py");
-    function::FunctionExtractor extractor;
-    const auto functions = extractor.Get(source);
-
+void CheckMetric(const std::string &filename, int expected) {
+    const file::File source(filename);
+    const auto functions = function::FunctionExtractor().Get(source);
     ASSERT_EQ(1u, functions.size());
 
-    const CodeLinesCountMetric metric;
-    const auto result = metric.Calculate(functions.front());
-
-    EXPECT_EQ(3, std::get<int>(result.value));
+    const auto result = CodeLinesCountMetric().Calculate(functions.front());
+    EXPECT_EQ(expected, std::get<int>(result.value));
 }
+
+}  // namespace
+
+TEST(CodeLinesCount, IgnoresCommentOnlyLines) { CheckMetric("comments.py", 3); }
+TEST(CodeLinesCount, Exceptions) { CheckMetric("exceptions.py", 7); }
+TEST(CodeLinesCount, If) { CheckMetric("if.py", 3); }
+TEST(CodeLinesCount, Loops) { CheckMetric("loops.py", 6); }
+TEST(CodeLinesCount, ManyLines) { CheckMetric("many_lines.py", 11); }
+TEST(CodeLinesCount, ManyParameters) { CheckMetric("many_parameters.py", 1); }
+TEST(CodeLinesCount, MatchCase) { CheckMetric("match_case.py", 7); }
+TEST(CodeLinesCount, NestedIf) { CheckMetric("nested_if.py", 8); }
+TEST(CodeLinesCount, Simple) { CheckMetric("simple.py", 5); }
+TEST(CodeLinesCount, Ternary) { CheckMetric("ternary.py", 1); }
 
 }  // namespace analyzer::metric::metric_impl
