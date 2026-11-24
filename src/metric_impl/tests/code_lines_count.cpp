@@ -4,7 +4,22 @@
 
 #include <gtest/gtest.h>
 
+namespace {
+const std::unordered_map<std::string, int> expected_metrics = {
+    {"comments.py", 3},        {"exceptions.py", 7}, {"if.py", 3},        {"loops.py", 6},  {"many_lines.py", 11},
+    {"many_parameters.py", 1}, {"match_case.py", 7}, {"nested_if.py", 8}, {"simple.py", 5}, {"ternary.py", 1},
+};
+
+}
+
 namespace analyzer::metric::metric_impl {
+
+TEST(CodeLinesCount, AllGood) {
+    std::for_each(expected_metrics.cbegin(), expected_metrics.cend(), [](const auto &em) {
+        auto functions = function::FunctionExtractor().Get(file::File(em.first));
+        EXPECT_EQ(std::get<int>(CodeLinesCountMetric().Calculate(functions.front()).value), em.second);
+    });
+}
 
 TEST(CodeLinesCount, IgnoresCommentOnlyLines) {
     const file::File source("comments.py");
