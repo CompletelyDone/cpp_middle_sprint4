@@ -1,5 +1,6 @@
 #include "metric_accumulator_impl/average_accumulator.hpp"
 
+#include <stdexcept>
 #include <unistd.h>
 
 #include <algorithm>
@@ -20,10 +21,20 @@
 namespace analyzer::metric_accumulator::metric_accumulator_impl {
 
 void AverageAccumulator::Accumulate(const metric::MetricResult &metric_result) {
+    if (is_finalized) {
+        throw std::runtime_error("AverageAccumulator::Accumulate: already finalized");
+    }
+
     sum += std::get<int>(metric_result.value);
     count++;
 }
 void AverageAccumulator::Finalize() {
+    if (is_finalized) {
+        throw std::runtime_error("AverageAccumulator::Finalize: already finalized");
+    }
+    if (count == 0)
+        throw std::runtime_error("AverageAccumulator::Finalize: zero count");
+
     average = static_cast<double>(sum) / count;
     is_finalized = true;
 }
