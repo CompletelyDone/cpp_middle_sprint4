@@ -1,4 +1,5 @@
 #pragma once
+#include <stdexcept>
 #include <unistd.h>
 
 #include <algorithm>
@@ -37,13 +38,30 @@ protected:
 struct MetricsAccumulator {
     template <typename Accumulator>
     void RegisterAccumulator(const std::string &metric_name, std::unique_ptr<Accumulator> acc) {
-        accumulators.emplace(metric_name, std::move(acc));
+        if (metric_name.empty()) {
+            throw std::runtime_error("MetricsAccumulator::RegisterAccumulator: metric name empty");
+        }
+
+        if (!acc) {
+            throw std::runtime_error("MetricsAccumulator::RegisterAccumulator: acc is null");
+        }
+
+        const auto pair = accumulators.emplace(metric_name, std::move(acc));
+        if (pair.second == false) {
+            throw std::runtime_error("MetricsAccumulator::RegisterAccumulator: acc is already exist");
+        }
     }
     template <typename Accumulator>
     const Accumulator &GetFinalizedAccumulator(const std::string &metric_name) const {
-        auto metric_accululator = accumulators.at(metric_name);
-        metric_accululator->Finalize();
-        return dynamic_cast<const Accumulator&>(*metric_accululator);
+        if (metric_name.empty())
+            throw std::runtime_error("MetricsAccumulator::GetFinalizedAccumulator: metric name empty");
+
+        auto &metric_accululator = *accumulators.at(metric_name);
+        const auto &result = dynamic_cast<const Accumulator &>(metric_accululator);
+
+        metric_accululator.Finalize();
+
+        return result;
     }
     void AccumulateNextFunctionResults(const std::vector<metric::MetricResult> &metric_results) const;
 

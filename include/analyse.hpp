@@ -14,6 +14,7 @@
 #include <ranges>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <variant>
 #include <vector>
 
@@ -41,10 +42,20 @@ namespace rs = std::ranges;
 auto AnalyseFunctions(const std::vector<std::string> &files,
                       const analyzer::metric::MetricExtractor &metric_extractor) {
     // здесь ваш код
+
+    return files | std::views::transform([](const std::string &filename) { return file::File{filename}; }) |
+           std::views::transform([](const auto &file) {
+               function::FunctionExtractor extractor;
+               return extractor.Get(file);
+           }) |
+           std::views::join | std::views::transform([&](const function::Function &f) {
+               return std::pair<function::Function, metric::MetricResults>(f, metric_extractor.Get(f));
+           }) |
+           std::ranges::to<std::vector<std::pair<function::Function, metric::MetricResults>>>();
 }
 
 /**
- * 
+ *
  * @brief Группирует результаты анализа по классам.
  *
  * Эта функция:
@@ -63,6 +74,10 @@ auto AnalyseFunctions(const std::vector<std::string> &files,
  */
 auto SplitByClasses(const auto &analysis) {
     // здесь ваш код
+    return analysis | std::views::filter([](const auto &el) { return el.first.class_name.has_value(); }) |
+           std::views::chunk_by([](const auto &a, const auto &b) {
+               return std::tie(a.first.class_name, a.first.filename) == std::tie(b.first.class_name, b.first.filename);
+           });
 }
 
 /**
@@ -75,6 +90,8 @@ auto SplitByClasses(const auto &analysis) {
  */
 auto SplitByFiles(const auto &analysis) {
     // здесь ваш код
+    return analysis |
+           std::views::chunk_by([](const auto &a, const auto &b) { return a.first.filename == b.first.filename; });
 }
 
 /**
@@ -88,6 +105,8 @@ auto SplitByFiles(const auto &analysis) {
 void AccumulateFunctionAnalysis(const auto &analysis,
                                 const analyzer::metric_accumulator::MetricsAccumulator &accumulator) {
     // здесь ваш код
+    std::ranges::for_each(analysis | std::views::values,
+                          [&](const auto &metrics) { accumulator.AccumulateNextFunctionResults(metrics); });
 }
 
 }  // namespace analyzer
