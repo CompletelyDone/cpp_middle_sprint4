@@ -42,21 +42,15 @@ namespace rs = std::ranges;
 auto AnalyseFunctions(const std::vector<std::string> &files,
                       const analyzer::metric::MetricExtractor &metric_extractor) {
     // здесь ваш код
-    const auto parsed_files =
-        std::views::transform(files, [](const std::string &filename) { return file::File{filename}; });
 
-    const auto functions_by_file = std::views::transform(parsed_files, [](const auto &file) {
+    return files | std::views::transform([](const std::string &filename) { return file::File{filename}; }) |
+    std::views::transform([](const auto &file) {
         function::FunctionExtractor extractor;
         return extractor.Get(file);
-    });
-
-    auto joined = std::views::join(functions_by_file);
-
-    auto metrics_by_func = std::views::transform(joined, [&](const function::Function &f) {
+    }) | std::views::join | std::views::transform([&](const function::Function &f) {
         return std::pair<function::Function, metric::MetricResults>(f, metric_extractor.Get(f));
-    });
+    }) | std::ranges::to<std::vector<std::pair<function::Function, metric::MetricResults>>>();
 
-    return std::ranges::to<std::vector<std::pair<function::Function, metric::MetricResults>>>(metrics_by_func);
 }
 
 /**
@@ -79,10 +73,7 @@ auto AnalyseFunctions(const std::vector<std::string> &files,
  */
 auto SplitByClasses(const auto &analysis) {
     // здесь ваш код
-
-    auto class_methods = std::views::filter(analysis, [](const auto &el) { return el.first.class_name.has_value(); });
-
-    return std::views::chunk_by(class_methods, [](const auto &a, const auto &b) {
+    return analysis | std::views::filter([](const auto &el) { return el.first.class_name.has_value(); }) | std::views::chunk_by([](const auto &a, const auto &b) {
         return std::tie(a.first.class_name, a.first.filename) == std::tie(b.first.class_name, b.first.filename);
     });
 }
@@ -97,7 +88,7 @@ auto SplitByClasses(const auto &analysis) {
  */
 auto SplitByFiles(const auto &analysis) {
     // здесь ваш код
-    return std::views::chunk_by(analysis,
+    return analysis | std::views::chunk_by(
                                 [](const auto &a, const auto &b) { return a.first.filename == b.first.filename; });
 }
 
@@ -112,9 +103,7 @@ auto SplitByFiles(const auto &analysis) {
 void AccumulateFunctionAnalysis(const auto &analysis,
                                 const analyzer::metric_accumulator::MetricsAccumulator &accumulator) {
     // здесь ваш код
-    const auto values = std::views::values(analysis);
-
-    std::ranges::for_each(values, [&](const auto &metrics) { accumulator.AccumulateNextFunctionResults(metrics); });
+    std::ranges::for_each(analysis | std::views::values, [&](const auto &metrics) { accumulator.AccumulateNextFunctionResults(metrics); });
 }
 
 }  // namespace analyzer
